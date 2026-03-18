@@ -2,20 +2,20 @@
 
 This repository contains the software for the Xerxes Pi carrier board by Rapid Analysis PTY LTD. 
 
-
+### Notes
+- This setup guide is created based on the assumption that we are developing using Rust. 
+- If needed, a C++ version will also be available as soon as Rob confirms.
 
 ## Architecture
 
-* **Language:** Rust (Zero-dependency TCP implementation)
+* **Language:** Rust
 * **Target Hardware:** ARM64 (Raspberry Pi OS / Debian 13)
 * **Dev Environment:** Vagrant (Debian 13 Trixie)
 
 ---
 
 ## Initial Setup (First Time Only)
-### Notes
-- This setup guide is created based on the assumption that we are developing using Rust. 
-- If needed, a C++ version will also be available as soon as Rob confirms.
+
 ### Prerequisites
 Before cloning this repository, ensure your host machine (Windows/Mac) has the following installed:
 1. [VirtualBox](https://www.virtualbox.org/wiki/Downloads)
