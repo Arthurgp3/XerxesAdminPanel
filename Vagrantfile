@@ -23,21 +23,33 @@ Vagrant.configure("2") do |config|
   # 5. Automated Provisioning: Install all required system tools and Rust
   config.vm.provision "shell", inline: <<-SHELL
     # Stop apt from showing interactive dialogs during the automated install
-    export DEBIAN_FRONTEND=noninteractive
+export DEBIAN_FRONTEND=noninteractive
 
     echo "Updating apt repositories..."
     apt-get update -y
 
-    echo "Installing core system tools, Samba, and Docker..."
-    apt-get install -y build-essential curl git wget samba docker.io
+    echo "Installing core tools, Samba, Docker, Nmap, and ARM Cross-Compiler..."
+    apt-get install -y build-essential curl git wget samba docker.io nmap gcc-aarch64-linux-gnu
 
-    # Allow the default 'vagrant' user to run Docker commands without sudo
+    # Allow the vagrant user to run Docker without sudo
     usermod -aG docker vagrant
 
-    echo "Installing Rust toolchain for the vagrant user..."
-    # We use 'su - vagrant' to ensure Rust is installed in the user's home directory, not root
-    su - vagrant -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+    echo "Installing Tailscale..."
+    curl -fsSL https://tailscale.com/install.sh | sh
 
+    echo "Installing Ngrok..."
+    curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+      | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+      && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
+      | sudo tee /etc/apt/sources.list.d/ngrok.list \
+      && sudo apt update && sudo apt install ngrok
+
+    echo "Installing Rust & ARM64 Target..."
+    su - vagrant -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+    # Add the target architecture for the Raspberry Pi CM4/CM5
+    su - vagrant -c "/home/vagrant/.cargo/bin/rustup target add aarch64-unknown-linux-gnu"
+
+    
     echo "======================================================"
     echo " Xerxes Pi Vagrant Environment is Ready!"
     echo " 1. Type 'vagrant ssh' to enter the machine."
