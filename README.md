@@ -78,6 +78,17 @@ When you are done developing for the day, return to your host terminal (not the 
 vagrant halt
 ```
 
+## Cross-Compiling for Production (ARM64)
+##### This will not be relevant until later stages of development. Skip this part for now.
+The physical Xerxes Pi utilises a Raspberry Pi CM4/CM5, which runs on an ARM64 architecture. Because your development VM is x86_64, you cannot simply copy your local testing build to the hardware. 
+
+To build the final, highly optimised executable for the actual hardware, you must cross-compile. From inside the `/workspace` directory in your `vagrant ssh` terminal, run:
+
+```bash
+cargo build --target aarch64-unknown-linux-gnu --release
+```
+Output Location: The compiled, deployment-ready binary will be located on the Linux VM at:
+/home/vagrant/xerxes-build-target/aarch64-unknown-linux-gnu/release/xerxes_admin_panel
 This safely powers down the VM and saves your computer's resources. Use `vagrant up` to instantly resume your work tomorrow.
 
 ## Notes
