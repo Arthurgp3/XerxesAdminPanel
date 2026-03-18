@@ -56,7 +56,7 @@ Open the integrated terminal in VSCode (which is now securely inside the Debian 
 cargo run
 ```
 
-**Important Note on Compilation:** To bypass a known VirtualBox file-locking bug (`os error 26`), this project uses a `.cargo/config.toml` file to force Rust to output its build artifacts to `/home/vagrant/xerxes-build-target` instead of the local workspace `target/` directory. You will not see a `target/` folder in the project root.
+###### ***Important Note on Compilation (for the nerds):*** To bypass a known VirtualBox file-locking bug (`os error 26`), this project uses a `.cargo/config.toml` file to force Rust to output its build artifacts to `/home/vagrant/xerxes-build-target` instead of the local workspace `target/` directory. You will not see a `target/` folder in the project root.
 
 ### Testing the API
 Once `cargo run` is executing, the server will listen on port `8080` inside the virtual machine. 
