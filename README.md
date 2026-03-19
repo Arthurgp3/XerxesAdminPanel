@@ -38,7 +38,7 @@ git clone https://github.com/PaulTr27/XerxesAdminPanel
 cd XerxesAdminPanel
 vagrant up
 ```
-*Note: The first time you run `vagrant up`, it will take a few minutes to download the Debian 13 image and automatically install the Rust toolchain, Docker, and Samba.*
+*Note: The first time you run `vagrant up`, it will take a few minutes to download the Debian 13 image and automatically install the C++ toolchain, Docker, and Samba.*
 
 ### Step 2: Open and Connect
 Because Vagrant automatically syncs this folder, you can edit the code natively on your host machine but compile it safely inside the Linux VM.
@@ -94,7 +94,7 @@ vagrant halt
 
 ## Cross-Compiling for Production (ARM64)
 ##### ***Notes***: This will not be relevant until later stages of development. Skip this part for now.
-The physical Xerxes Pi utilizes a Raspberry Pi CM4/CM5, which runs on an ARM64 architecture. Because your development VM simulates x86_64, you cannot simply copy your local testing build to the hardware. 
+The physical Xerxes Pi utilises a Raspberry Pi CM4/CM5, which runs on an ARM64 architecture. Because your development VM simulates x86_64, you cannot simply copy your local testing build to the hardware. 
 
 To build the final executable for the actual hardware, you must cross-compile. We can override the default compiler in our Makefile by passing the ARM64 GCC compiler:
 
@@ -105,7 +105,7 @@ make CXX=aarch64-linux-gnu-g++ TARGET=xerxes_backend_arm64
 You can then securely copy the resulting `xerxes_backend_arm64` file directly to your physical Xerxes Pi board for deployment.
 
 ## Notes
-- There will be some differences between Macbook and Windows machines in the setting up process. If this setup guide does not work for you, contact me immediately so we can all progress.
+- There will be some differences between MacBooks and Windows machines in the setup process. If this setup guide does not work for you, contact me immediately so we can all progress.
 - If there is any enquiry about setting up or the development process in general, contact me in Discord or drop an email at thienphu.tran@students.mq.edu.au
 
 
