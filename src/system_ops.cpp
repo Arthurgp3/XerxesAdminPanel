@@ -112,20 +112,6 @@ namespace system_ops {
         return capture(it->second);
     }
 
-    // Execute using new CommandWrapper with role-based access control
-    CommandResult execute_command(const std::string& command_name, 
-                                const std::string& params,
-                                user_role::Role role) {
-        auto& wrapper = CommandWrapper::get_instance();
-        
-        // If not initialized, initialize now
-        if (!wrapper.is_allowed("disk_usage")) {
-            wrapper.initialize_defaults();
-        }
-        
-        return wrapper.execute_with_timeout(command_name, params, role, 30000);
-    }
-
     // ----------------------------------------------------------------
     // Dashboard card helpers
     // Each calls a specific, hardcoded command and trims the output
