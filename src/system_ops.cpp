@@ -66,12 +66,34 @@ namespace system_ops {
         { "tailscale_down",  "sudo tailscale down 2>&1" },
         { "tailscale_status","tailscale status 2>&1" },
         // ngrok tunnel (auth token must be configured in the VM first via: ngrok config add-authtoken <token>)
-        { "ngrok_start",     "ngrok http 8080 > /tmp/ngrok.log 2>&1 & echo 'ngrok tunnel starting on port 8080. Use Check Status to verify.'" },
+        { "ngrok_start",     "pkill ngrok 2>/dev/null; nohup ngrok http 8080 > /tmp/ngrok.log 2>&1 & echo 'ngrok tunnel starting on port 8080. Use Check Status to verify.'" },
         { "ngrok_stop",      "pkill ngrok 2>/dev/null && echo 'ngrok stopped.' || echo 'ngrok was not running.'" },
-        { "ngrok_status",    "pgrep -x ngrok > /dev/null && echo 'ngrok is running' || echo 'ngrok is not running'" },
+        // Show process state AND last 10 lines of the ngrok log so we can see tunnel URLs / errors
+        { "ngrok_status",
+          "if pgrep -x ngrok > /dev/null; then "
+            "echo 'ngrok is running.'; echo ''; "
+            "echo 'Log output:'; "
+            "tail -10 /tmp/ngrok.log 2>/dev/null || echo '(no log file yet)'; "
+          "else "
+            "echo 'ngrok is not running.'; echo ''; "
+            "echo 'Last log:'; tail -5 /tmp/ngrok.log 2>/dev/null || echo '(no log)'; "
+          "fi" },
+        // Tailscale extra info
+        { "tailscale_ip",      "tailscale ip 2>&1" },
+        // ngrok — per-port start commands (hardcoded, not user-influenced)
+        // nohup prevents SIGHUP from killing ngrok when the popen() shell exits
+        { "ngrok_start_8080",  "pkill ngrok 2>/dev/null; nohup ngrok http 8080 > /tmp/ngrok.log 2>&1 & echo 'ngrok tunnel starting on port 8080. Use Check Status to verify.'" },
+        { "ngrok_start_80",    "pkill ngrok 2>/dev/null; nohup ngrok http 80   > /tmp/ngrok.log 2>&1 & echo 'ngrok tunnel starting on port 80. Use Check Status to verify.'"   },
+        { "ngrok_start_3000",  "pkill ngrok 2>/dev/null; nohup ngrok http 3000 > /tmp/ngrok.log 2>&1 & echo 'ngrok tunnel starting on port 3000. Use Check Status to verify.'" },
+        { "ngrok_start_5000",  "pkill ngrok 2>/dev/null; nohup ngrok http 5000 > /tmp/ngrok.log 2>&1 & echo 'ngrok tunnel starting on port 5000. Use Check Status to verify.'" },
+        // ngrok URL — try local API first; also output any ngrok URL found in the log as a fallback.
+        // The JS side will accept either a JSON "public_url" value or a raw https://...ngrok... URL.
+        { "ngrok_url",
+          "curl -s http://localhost:4040/api/tunnels 2>/dev/null; "
+          "grep -oE 'https://[A-Za-z0-9_-]+\\.ngrok[A-Za-z0-9._-]*' /tmp/ngrok.log 2>/dev/null | tail -1" },
         // Power controls (use systemctl for consistent PATH via popen)
-        { "reboot",          "sudo systemctl reboot 2>&1" },
-        { "shutdown",        "sudo systemctl poweroff 2>&1" }
+        { "reboot",            "sudo systemctl reboot 2>&1" },
+        { "shutdown",          "sudo systemctl poweroff 2>&1" }
     };
 
     // ----------------------------------------------------------------
@@ -101,6 +123,22 @@ namespace system_ops {
         }
 
         return wrapper.execute_with_timeout(command_name, params, role, 30000);
+    }
+
+    // ----------------------------------------------------------------
+    // tailscale_up()
+    // Runs `tailscale up` with an optional pre-validated auth key.
+    // The authkey is validated by the router before this is called
+    // (only alphanumeric, hyphens, underscores allowed).
+    // ----------------------------------------------------------------
+    std::string tailscale_up(const std::string& authkey) {
+        std::string cmd;
+        if (authkey.empty()) {
+            cmd = "timeout 10 sudo tailscale up 2>&1 || echo '[note] tailscale up timed out — open the auth URL in a browser if prompted'";
+        } else {
+            cmd = "timeout 10 sudo tailscale up --authkey=" + authkey + " 2>&1 || echo '[note] tailscale up failed or timed out'";
+        }
+        return capture(cmd.c_str());
     }
 
     std::string run_command(const std::string& command_name) {

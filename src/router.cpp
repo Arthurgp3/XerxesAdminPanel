@@ -1,7 +1,9 @@
 #include "router.h"
 #include "system_ops.h"
+#include "network_config.h"
 #include "json.hpp"
 #include <iostream>
+#include <cctype>
 
 // Helper: adds CORS headers so the frontend JS can call the API
 static void set_cors_headers(httplib::Response& res) {
@@ -133,6 +135,94 @@ void setup_routes(httplib::Server& svr) {
         };
 
         res.set_content(response.dump(), "application/json");
+    });
+
+    // ------------------------------------------------------------------
+    // GET /api/netinfo
+    // Returns primary interface name, IP, gateway, DNS servers, and
+    // the full list of non-loopback interfaces for the network config UI.
+    // ------------------------------------------------------------------
+    svr.Get("/api/netinfo", [](const httplib::Request&, httplib::Response& res) {
+        set_cors_headers(res);
+        nlohmann::json response = network_config::get_network_info();
+        res.set_content(response.dump(), "application/json");
+    });
+
+    // ------------------------------------------------------------------
+    // POST /api/network
+    // Accepts { "interface": "eth0", "mode": "static"|"dhcp",
+    //           "ip": "x.x.x.x/y", "gateway": "x.x.x.x", "dns": "x.x.x.x" }
+    // Writes or removes a static IP config block in /etc/dhcpcd.conf.
+    // ------------------------------------------------------------------
+    svr.Post("/api/network", [](const httplib::Request& req, httplib::Response& res) {
+        set_cors_headers(res);
+
+        try {
+            nlohmann::json body = nlohmann::json::parse(req.body);
+            std::string iface = body.value("interface", "");
+            std::string mode  = body.value("mode", "dhcp");
+
+            std::cout << "[Network Config] iface=" << iface << " mode=" << mode << "\n";
+
+            std::string result;
+            if (mode == "dhcp") {
+                result = network_config::set_dhcp(iface);
+            } else if (mode == "static") {
+                std::string ip      = body.value("ip",      "");
+                std::string gateway = body.value("gateway", "");
+                std::string dns     = body.value("dns",     "");
+                result = network_config::set_static(iface, ip, gateway, dns);
+            } else {
+                nlohmann::json error = { {"status", "error"}, {"message", "Invalid mode — use 'dhcp' or 'static'"} };
+                res.status = 400;
+                res.set_content(error.dump(), "application/json");
+                return;
+            }
+
+            nlohmann::json response = { {"status", "ok"}, {"output", result} };
+            res.set_content(response.dump(), "application/json");
+
+        } catch (const std::exception& e) {
+            nlohmann::json error = { {"status", "error"}, {"message", "Invalid request body"} };
+            res.status = 400;
+            res.set_content(error.dump(), "application/json");
+        }
+    });
+
+    // ------------------------------------------------------------------
+    // POST /api/tailscale/up
+    // Accepts { "authkey": "tskey-auth-..." } (authkey is optional).
+    // Auth key is validated here — only alphanumeric, hyphens, and
+    // underscores are allowed. The validated key is passed to
+    // system_ops::tailscale_up() which builds the safe shell command.
+    // ------------------------------------------------------------------
+    svr.Post("/api/tailscale/up", [](const httplib::Request& req, httplib::Response& res) {
+        set_cors_headers(res);
+
+        try {
+            nlohmann::json body = nlohmann::json::parse(req.body);
+            std::string authkey = body.value("authkey", "");
+
+            for (char c : authkey) {
+                if (!std::isalnum((unsigned char)c) && c != '-' && c != '_') {
+                    nlohmann::json error = { {"status", "error"}, {"message", "Invalid auth key — only letters, numbers, hyphens, and underscores are allowed"} };
+                    res.status = 400;
+                    res.set_content(error.dump(), "application/json");
+                    return;
+                }
+            }
+
+            std::cout << "[Tailscale] up requested, authkey=" << (authkey.empty() ? "(none)" : "(provided)") << "\n";
+
+            std::string output = system_ops::tailscale_up(authkey);
+            nlohmann::json response = { {"status", "ok"}, {"output", output} };
+            res.set_content(response.dump(), "application/json");
+
+        } catch (const std::exception& e) {
+            nlohmann::json error = { {"status", "error"}, {"message", "Invalid request body"} };
+            res.status = 400;
+            res.set_content(error.dump(), "application/json");
+        }
     });
 
     // ------------------------------------------------------------------

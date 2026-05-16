@@ -4,6 +4,8 @@
    No graphics — CSS only.
    ============================================================ */
 
+/* Version 6 — console navbar button, popup open/close animation, network spacing fix */
+
 /* ── CSS VARIABLES (Light mode defaults) ── */
 :root {
   --bg:           #f5f5f7;
@@ -39,6 +41,7 @@
 
 /* ── RESET & BASE ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }  /* ensure hidden attribute wins over any display rule */
 html { scroll-behavior: smooth; }
 
 body {
@@ -106,7 +109,7 @@ body {
   color: var(--text-primary);
 }
 
-.navbar-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.navbar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
 /* ── STATUS PILL ── */
 .status-pill {
@@ -148,6 +151,23 @@ body {
 
 .theme-toggle:hover { background: var(--border); color: var(--text-primary); }
 
+/* ── CONSOLE BUTTON (navbar) ── */
+.console-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+.console-btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
 /* ── MAIN CONTENT ── */
 .content {
   flex: 1;
@@ -157,7 +177,9 @@ body {
   padding: 40px 32px;
 }
 
-.section { margin-bottom: 8px; }
+/* ── TAB SWITCHING — only .active section is shown ── */
+.section         { display: none; margin-bottom: 8px; }
+.section.active  { display: block; }
 
 .section-title {
   font-size: 20px;
@@ -340,6 +362,9 @@ body {
   color: var(--status-off);
 }
 
+/* Gap between the live-info card grid and the first control card below it */
+#net-info-grid { margin-bottom: 20px; }
+
 /* ── CONTROL CARDS (Network / Tunnels) ── */
 /* Intentionally matches .card style for visual consistency */
 .control-card {
@@ -474,4 +499,179 @@ body {
   font-size: 12px;
   color: var(--text-secondary);
   border-top: 1px solid var(--border);
+}
+
+/* ── POPUP ANIMATIONS ── */
+@keyframes overlay-in  { from { opacity: 0; }                          to { opacity: 1; } }
+@keyframes overlay-out { from { opacity: 1; }                          to { opacity: 0; } }
+@keyframes popup-in    { from { opacity: 0; transform: scale(0.93); }  to { opacity: 1; transform: scale(1); } }
+@keyframes popup-out   { from { opacity: 1; transform: scale(1);    }  to { opacity: 0; transform: scale(0.93); } }
+
+/* ── OUTPUT POPUP OVERLAY ── */
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* Open animations — play when popup becomes visible */
+.popup-overlay:not([hidden]) {
+  animation: overlay-in 0.2s ease both;
+}
+.popup-overlay:not([hidden]) .popup-box {
+  animation: popup-in 0.22s cubic-bezier(0.34, 1.12, 0.64, 1) both;
+}
+
+/* Close animations — driven by .popup-closing class set in JS */
+.popup-overlay.popup-closing {
+  animation: overlay-out 0.16s ease forwards;
+}
+.popup-overlay.popup-closing .popup-box {
+  animation: popup-out 0.16s ease forwards;
+}
+
+.popup-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
+  width: 100%;
+  max-width: 640px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.popup-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.popup-close-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.popup-body {
+  background: var(--bg-output);
+  color: var(--text-output);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  padding: 20px;
+  min-height: 120px;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+/* ── MINI CARDS (Tailscale / ngrok info rows) ── */
+.mini-card-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.mini-card {
+  flex: 1;
+  min-width: 120px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mini-card--wide { flex: 2; }
+
+.mini-card-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.mini-card-value {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+/* ── SELECT INPUT ── */
+.select-input {
+  padding: 9px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  min-width: 140px;
+}
+
+.select-input:focus { border-color: var(--accent); }
+
+/* ── INPUT LABEL ── */
+.input-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  align-self: center;
+}
+
+/* ── STATIC IP FIELDS wrapper ── */
+.static-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+/* ── INLINE CODE in desc text ── */
+.control-card-desc code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--text-primary);
 }

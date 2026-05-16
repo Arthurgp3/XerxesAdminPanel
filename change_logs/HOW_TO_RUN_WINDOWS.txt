@@ -152,9 +152,15 @@ and auth token before it can create tunnels.
      stored in the project folder and will never appear
      in the GitHub repository.
 
-  After setup, the Start button will expose port 8080
-  (the admin panel backend) to the internet via an ngrok
-  tunnel. Use Check Status to confirm it is running.
+  After setup, the Start button will expose the selected
+  port to the internet via an ngrok tunnel.
+
+  After pressing Start:
+  - The Tunnel URL card shows "Searching for URL..." while
+    ngrok connects (usually 3–10 seconds).
+  - Once connected, the public URL auto-populates.
+  - Press "Check Status" at any time to see the ngrok log
+    including the tunnel URL and any error messages.
 
   NOTE: The ngrok tunnel only runs while the VM is on and
   the process is active. It does not survive a vagrant halt.
@@ -198,6 +204,18 @@ COMMON ISSUES
 "ngrok Start button returns an error"
   -> Your auth token has not been configured in the VM yet.
      See SETTING UP NGROK above.
+
+"ngrok shows active badge but Tunnel URL says Searching... forever"
+  -> The new binary may not be running. Make sure you followed
+     Steps 7 and 8 exactly — copy to /tmp/ THEN run from /tmp/:
+       rm /tmp/xerxes_backend
+       cp xerxes_backend /tmp/xerxes_backend
+       chmod +x /tmp/xerxes_backend
+       /tmp/xerxes_backend
+     Running ./xerxes_backend directly from /workspace/ does
+     NOT work (VirtualBox shared folders block execute).
+  -> Also press "Check Status" — it now shows the ngrok log
+     so you can see exactly what ngrok is doing.
 
 ============================================================
 NOTE: The Command Prompt window running the server must

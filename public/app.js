@@ -1,11 +1,12 @@
 /* ============================================================
    XERXES PI ADMIN — app.js
-   Handles: localisation, theme toggle, status check,
-            command execution, hostname rename, service
-            status badges, reboot/shutdown controls.
+   Handles: localisation, theme, status check, tab switching,
+            output popup, system commands, network info & config,
+            hostname rename, Tailscale dashboard, ngrok dashboard,
+            service badges, reboot/shutdown.
    ============================================================ */
 
-const API_BASE = "";  // same origin — served by the C++ backend
+var API_BASE = "";  // same origin — served by the C++ backend
 
 /* ── LOCALISATION ── */
 function loadLang() {
@@ -19,9 +20,7 @@ function loadLang() {
           var key = el.getAttribute("data-i18n");
           if (strings[key]) el.textContent = strings[key];
         });
-      } catch (e) {
-        console.warn("lang.json parse error:", e);
-      }
+      } catch (e) { console.warn("lang.json parse error:", e); }
     }
   };
   xhr.send();
@@ -71,6 +70,85 @@ function setOffline() {
 checkStatus();
 setInterval(checkStatus, 15000);
 
+/* ── TAB SWITCHING ── */
+var navLinks = document.querySelectorAll(".nav-link[data-section]");
+var sections = document.querySelectorAll(".section");
+
+navLinks.forEach(function (link) {
+  link.addEventListener("click", function (e) {
+    e.preventDefault();
+    var target = link.getAttribute("data-section");
+
+    navLinks.forEach(function (l) { l.classList.remove("active"); });
+    link.classList.add("active");
+
+    sections.forEach(function (s) { s.classList.remove("active"); });
+    var sec = document.getElementById(target);
+    if (sec) sec.classList.add("active");
+
+    // Lazy-load section data
+    if (target === "network") loadNetworkInfo();
+    if (target === "tunnels") loadTailscaleDetails();
+  });
+});
+
+/* ── OUTPUT POPUP ── */
+var outputPopup     = document.getElementById("output-popup");
+var popupBody       = document.getElementById("popup-body");
+var popupTitle      = document.getElementById("popup-title");
+var closeAnimHandler = null;          // tracks in-flight close animation handler
+var consoleHistory  = "No commands have been run yet.";  // last real output for Console button
+
+// Sets popup output text AND saves it to the console history log
+function setPopupOutput(text) {
+  popupBody.textContent = text;
+  if (text && text !== "Running..." && text !== "Enabling Tailscale...") {
+    consoleHistory = text;
+  }
+}
+
+function showOutputPopup(title, text) {
+  // If a close animation is mid-flight, cancel it before re-opening so the
+  // stale handler doesn't fire on this open animation's animationend
+  if (closeAnimHandler) {
+    outputPopup.removeEventListener("animationend", closeAnimHandler);
+    closeAnimHandler = null;
+  }
+  outputPopup.classList.remove("popup-closing");
+  popupTitle.textContent = title || "Output";
+  popupBody.textContent  = text  || "Running...";
+  outputPopup.hidden = false;
+}
+
+function closeOutputPopup() {
+  if (outputPopup.hidden) return;
+  outputPopup.classList.add("popup-closing");
+  // Use a named inner function so the removeEventListener call has a stable reference.
+  // If we did closeAnimHandler = null first and then removeEventListener(closeAnimHandler),
+  // we'd be passing null and the listener would never be removed — causing the next
+  // open animation's animationend to instantly re-hide the popup.
+  function handler(e) {
+    if (e.target !== outputPopup) return;   // ignore bubbled events from .popup-box
+    outputPopup.removeEventListener("animationend", handler);  // remove first, while ref is valid
+    closeAnimHandler = null;
+    outputPopup.hidden = true;
+    outputPopup.classList.remove("popup-closing");
+  }
+  closeAnimHandler = handler;
+  outputPopup.addEventListener("animationend", handler);
+}
+
+document.getElementById("popup-close").addEventListener("click", closeOutputPopup);
+
+outputPopup.addEventListener("click", function (e) {
+  if (e.target === outputPopup) closeOutputPopup();
+});
+
+/* ── CONSOLE BUTTON (navbar) ── */
+document.getElementById("console-open-btn").addEventListener("click", function () {
+  showOutputPopup("Console", consoleHistory);
+});
+
 /* ── DASHBOARD CARDS ── */
 function loadDashboard() {
   var xhr = new XMLHttpRequest();
@@ -82,7 +160,6 @@ function loadDashboard() {
         var data = JSON.parse(xhr.responseText);
         if (data.hostname) {
           document.getElementById("val-hostname").textContent = data.hostname;
-          // Also update the hostname badge in the Network section
           var badge = document.getElementById("badge-hostname");
           if (badge) badge.textContent = data.hostname;
         }
@@ -120,64 +197,180 @@ function updateBadge(id, status) {
   if (!el) return;
   el.textContent = status || "unknown";
   el.className   = "service-badge";
-  if (status === "active")   el.classList.add("badge-active");
-  else if (status === "failed") el.classList.add("badge-failed");
-  else                          el.classList.add("badge-inactive");
+  if (status === "active")        el.classList.add("badge-active");
+  else if (status === "failed")   el.classList.add("badge-failed");
+  else                            el.classList.add("badge-inactive");
 }
 
-/* ── COMMAND EXECUTION ── */
+/* ── SYSTEM COMMANDS (write to inline output panel) ── */
 var outputBody = document.getElementById("output-body");
-var clearBtn   = document.getElementById("clear-output");
 
-document.querySelectorAll(".cmd-btn").forEach(function (btn) {
+document.querySelectorAll(".sys-cmd").forEach(function (btn) {
   btn.addEventListener("click", function () {
-    runCommand(btn.getAttribute("data-command"));
+    runSystemCommand(btn.getAttribute("data-command"), btn);
   });
 });
 
-function runCommand(command) {
-  document.querySelectorAll(".cmd-btn").forEach(function (b) {
-    b.classList.add("running");
-    b.disabled = true;
-  });
-
+function runSystemCommand(command, btn) {
+  btn.disabled = true;
+  btn.classList.add("running");
   outputBody.textContent = "Running: " + command + "...\n";
 
   var xhr = new XMLHttpRequest();
   xhr.open("POST", API_BASE + "/api/command", true);
   xhr.setRequestHeader("Content-Type", "application/json");
-  // tailscale up blocks for auth — give it 20 s; other commands get 15 s
-  xhr.timeout = (command === "tailscale_up") ? 20000 : 15000;
+  xhr.timeout = 15000;
 
   xhr.onload = function () {
     try {
       var data = JSON.parse(xhr.responseText);
       outputBody.textContent = data.output || data.message || xhr.responseText;
-    } catch (e) {
-      outputBody.textContent = xhr.responseText;
-    }
-    resetButtons();
-    // Refresh service badges after any service-related command
-    var serviceCommands = ["samba_start","samba_stop","samba_status",
-                           "tailscale_up","tailscale_down","tailscale_status",
-                           "ngrok_start","ngrok_stop","ngrok_status"];
-    if (serviceCommands.indexOf(command) !== -1) loadServices();
+    } catch (e) { outputBody.textContent = xhr.responseText; }
+    btn.disabled = false;
+    btn.classList.remove("running");
   };
-
-  xhr.onerror   = function () { outputBody.textContent = "Error: Could not reach the backend."; resetButtons(); };
-  xhr.ontimeout = function () { outputBody.textContent = "Error: Request timed out."; resetButtons(); };
+  xhr.onerror   = function () { outputBody.textContent = "Error: Could not reach the backend."; btn.disabled = false; btn.classList.remove("running"); };
+  xhr.ontimeout = function () { outputBody.textContent = "Error: Request timed out.";           btn.disabled = false; btn.classList.remove("running"); };
   xhr.send(JSON.stringify({ command: command }));
 }
 
-function resetButtons() {
-  document.querySelectorAll(".cmd-btn").forEach(function (b) {
-    b.classList.remove("running");
-    b.disabled = false;
+document.getElementById("clear-output").addEventListener("click", function () {
+  outputBody.textContent = "Command output will appear here...";
+});
+
+/* ── GENERIC CMD-BTN (non-system — shows output popup) ── */
+document.querySelectorAll(".cmd-btn:not(.sys-cmd)").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    runPopupCommand(btn.getAttribute("data-command"), btn);
   });
+});
+
+function runPopupCommand(command, btn) {
+  var label = command.replace(/_/g, " ");
+  showOutputPopup(label, "Running...");
+  btn.disabled = true;
+  btn.classList.add("running");
+
+  var xhr = new XMLHttpRequest();
+  xhr.open("POST", API_BASE + "/api/command", true);
+  xhr.setRequestHeader("Content-Type", "application/json");
+  xhr.timeout = (command === "tailscale_up") ? 20000 : 15000;
+
+  xhr.onload = function () {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      setPopupOutput(data.output || data.message || xhr.responseText);
+    } catch (e) { setPopupOutput(xhr.responseText); }
+    btn.disabled = false;
+    btn.classList.remove("running");
+
+    var serviceCommands = ["samba_start","samba_stop","samba_status",
+                           "tailscale_down","tailscale_status",
+                           "ngrok_stop","ngrok_status"];
+    if (serviceCommands.indexOf(command) !== -1) {
+      loadServices();
+      if (command.indexOf("tailscale") !== -1) loadTailscaleDetails();
+    }
+  };
+  xhr.onerror   = function () { setPopupOutput("Error: Could not reach the backend."); btn.disabled = false; btn.classList.remove("running"); };
+  xhr.ontimeout = function () { setPopupOutput("Error: Request timed out.");           btn.disabled = false; btn.classList.remove("running"); };
+  xhr.send(JSON.stringify({ command: command }));
 }
 
-clearBtn.addEventListener("click", function () {
-  outputBody.textContent = "Command output will appear here...";
+/* ── NETWORK INFO (auto-loaded on Network tab open) ── */
+function loadNetworkInfo() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", API_BASE + "/api/netinfo", true);
+  xhr.timeout = 8000;
+  xhr.onload = function () {
+    if (xhr.status === 200) {
+      try {
+        var data = JSON.parse(xhr.responseText);
+        document.getElementById("net-iface-card").textContent    = data.interface || "—";
+        document.getElementById("net-ip-card").textContent       = data.ip        || "—";
+        document.getElementById("net-gateway-card").textContent  = data.gateway   || "—";
+        var dns = Array.isArray(data.dns) ? data.dns.join(", ") : (data.dns || "—");
+        document.getElementById("net-dns-card").textContent = dns || "—";
+
+        // Populate interface dropdown
+        var select = document.getElementById("net-iface-select");
+        select.innerHTML = "";
+        var ifaces = data.interfaces || (data.interface ? [data.interface] : []);
+        ifaces.forEach(function (iface) {
+          var opt = document.createElement("option");
+          opt.value = iface;
+          opt.textContent = iface;
+          select.appendChild(opt);
+        });
+        if (ifaces.length === 0) {
+          var opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = "No interfaces found";
+          select.appendChild(opt);
+        }
+      } catch (e) { console.warn("netinfo parse error:", e); }
+    }
+  };
+  xhr.onerror   = function () { console.warn("netinfo fetch failed."); };
+  xhr.ontimeout = function () { console.warn("netinfo fetch timed out."); };
+  xhr.send();
+}
+
+/* ── NETWORK CONFIG (static IP / DHCP) ── */
+document.getElementById("net-mode-select").addEventListener("change", function () {
+  document.getElementById("static-ip-fields").hidden = (this.value !== "static");
+});
+
+document.getElementById("net-config-btn").addEventListener("click", function () {
+  var iface    = document.getElementById("net-iface-select").value;
+  var mode     = document.getElementById("net-mode-select").value;
+  var feedback = document.getElementById("net-config-feedback");
+  var btn      = this;
+
+  if (!iface) {
+    showFeedback(feedback, "Please select a network interface.", "error");
+    return;
+  }
+
+  var body = { interface: iface, mode: mode };
+
+  if (mode === "static") {
+    body.ip      = document.getElementById("net-static-ip").value.trim();
+    body.gateway = document.getElementById("net-static-gateway").value.trim();
+    body.dns     = document.getElementById("net-static-dns").value.trim();
+
+    if (!body.ip || !body.gateway) {
+      showFeedback(feedback, "IP address and gateway are required for static mode.", "error");
+      return;
+    }
+  }
+
+  btn.disabled    = true;
+  btn.textContent = "Applying...";
+  showFeedback(feedback, "", "");
+
+  var xhr = new XMLHttpRequest();
+  xhr.open("POST", API_BASE + "/api/network", true);
+  xhr.setRequestHeader("Content-Type", "application/json");
+  xhr.timeout = 10000;
+
+  xhr.onload = function () {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (data.status === "ok") {
+        showFeedback(feedback, data.output || "Configuration updated. Reboot to apply.", "success");
+      } else {
+        showFeedback(feedback, data.message || "Failed to apply configuration.", "error");
+      }
+    } catch (e) {
+      showFeedback(feedback, "Unexpected response from backend.", "error");
+    }
+    btn.disabled    = false;
+    btn.textContent = "Apply";
+  };
+  xhr.onerror   = function () { showFeedback(feedback, "Error: Could not reach backend.", "error"); btn.disabled = false; btn.textContent = "Apply"; };
+  xhr.ontimeout = function () { showFeedback(feedback, "Error: Request timed out.", "error");       btn.disabled = false; btn.textContent = "Apply"; };
+  xhr.send(JSON.stringify(body));
 });
 
 /* ── HOSTNAME RENAME ── */
@@ -186,8 +379,6 @@ var hostnameInput    = document.getElementById("hostname-input");
 var hostnameReset    = document.getElementById("hostname-reset");
 var hostnameFeedback = document.getElementById("hostname-feedback");
 
-// Fills the input with the current hostname shown on the dashboard card.
-// Acts as an "undo" for the rename — the user still has to click Rename to confirm.
 hostnameReset.addEventListener("click", function () {
   var currentHostname = document.getElementById("val-hostname").textContent;
   if (currentHostname && currentHostname !== "—") {
@@ -195,7 +386,7 @@ hostnameReset.addEventListener("click", function () {
     hostnameInput.focus();
     showFeedback(hostnameFeedback, "Current hostname pre-filled — click Rename to apply.", "");
   } else {
-    showFeedback(hostnameFeedback, "Could not read current hostname — try refreshing the page.", "error");
+    showFeedback(hostnameFeedback, "Could not read current hostname — try refreshing.", "error");
   }
 });
 
@@ -206,7 +397,7 @@ hostnameBtn.addEventListener("click", function () {
     return;
   }
 
-  hostnameBtn.disabled = true;
+  hostnameBtn.disabled    = true;
   hostnameBtn.textContent = "Renaming...";
   showFeedback(hostnameFeedback, "", "");
 
@@ -223,7 +414,7 @@ hostnameBtn.addEventListener("click", function () {
       } else {
         showFeedback(hostnameFeedback, "Hostname updated successfully. Reboot to apply fully.", "success");
         hostnameInput.value = "";
-        loadDashboard(); // refresh the hostname card
+        loadDashboard();
       }
     } catch (e) {
       showFeedback(hostnameFeedback, "Unexpected response from backend.", "error");
@@ -231,12 +422,175 @@ hostnameBtn.addEventListener("click", function () {
     hostnameBtn.disabled    = false;
     hostnameBtn.textContent = "Rename";
   };
-
   xhr.onerror   = function () { showFeedback(hostnameFeedback, "Error: Could not reach backend.", "error"); hostnameBtn.disabled = false; hostnameBtn.textContent = "Rename"; };
-  xhr.ontimeout = function () { showFeedback(hostnameFeedback, "Error: Request timed out.", "error"); hostnameBtn.disabled = false; hostnameBtn.textContent = "Rename"; };
+  xhr.ontimeout = function () { showFeedback(hostnameFeedback, "Error: Request timed out.", "error");       hostnameBtn.disabled = false; hostnameBtn.textContent = "Rename"; };
   xhr.send(JSON.stringify({ hostname: newName }));
 });
 
+/* ── TAILSCALE DASHBOARD ── */
+function loadTailscaleDetails() {
+  // Get Tailscale IP
+  var xhrIP = new XMLHttpRequest();
+  xhrIP.open("POST", API_BASE + "/api/command", true);
+  xhrIP.setRequestHeader("Content-Type", "application/json");
+  xhrIP.timeout = 5000;
+  xhrIP.onload = function () {
+    try {
+      var data = JSON.parse(xhrIP.responseText);
+      var ip = (data.output || "").trim();
+      document.getElementById("ts-ip").textContent =
+        (ip && ip.indexOf("[") === -1) ? ip : "—";
+    } catch (e) {}
+  };
+  xhrIP.send(JSON.stringify({ command: "tailscale_ip" }));
+
+  // Parse node name from tailscale status
+  var xhrSt = new XMLHttpRequest();
+  xhrSt.open("POST", API_BASE + "/api/command", true);
+  xhrSt.setRequestHeader("Content-Type", "application/json");
+  xhrSt.timeout = 5000;
+  xhrSt.onload = function () {
+    try {
+      var data = JSON.parse(xhrSt.responseText);
+      var output = (data.output || "").trim();
+      var lines = output.split("\n").filter(function (l) { return l.trim(); });
+      // First line of tailscale status: "<ip>  <node-name>  <user>  <os>  -"
+      if (lines.length > 0) {
+        var parts = lines[0].trim().split(/\s+/);
+        document.getElementById("ts-node").textContent = parts[1] || "—";
+      }
+    } catch (e) {}
+  };
+  xhrSt.send(JSON.stringify({ command: "tailscale_status" }));
+}
+
+// Tailscale enable with optional auth key
+document.getElementById("ts-enable-btn").addEventListener("click", function () {
+  var authkey  = document.getElementById("ts-authkey").value.trim();
+  var feedback = document.getElementById("ts-feedback");
+  var btn      = this;
+
+  // Auth keys are alphanumeric + hyphens + underscores only
+  if (authkey && !/^[a-zA-Z0-9\-_]+$/.test(authkey)) {
+    showFeedback(feedback, "Invalid auth key format.", "error");
+    return;
+  }
+
+  showOutputPopup("Tailscale — Enable", "Enabling Tailscale...");
+  btn.disabled    = true;
+  btn.textContent = "Enabling...";
+  showFeedback(feedback, "", "");
+
+  var xhr = new XMLHttpRequest();
+  xhr.open("POST", API_BASE + "/api/tailscale/up", true);
+  xhr.setRequestHeader("Content-Type", "application/json");
+  xhr.timeout = 20000;
+
+  xhr.onload = function () {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      setPopupOutput(data.output || data.message || xhr.responseText);
+    } catch (e) { setPopupOutput(xhr.responseText); }
+    btn.disabled    = false;
+    btn.textContent = "Enable";
+    loadServices();
+    loadTailscaleDetails();
+  };
+  xhr.onerror   = function () { setPopupOutput("Error: Could not reach backend."); btn.disabled = false; btn.textContent = "Enable"; };
+  xhr.ontimeout = function () { setPopupOutput("Tailscale up timed out — check if auth is needed."); btn.disabled = false; btn.textContent = "Enable"; };
+  xhr.send(JSON.stringify({ authkey: authkey }));
+});
+
+/* ── NGROK DASHBOARD ── */
+document.getElementById("ngrok-start-btn").addEventListener("click", function () {
+  var command   = document.getElementById("ngrok-port-select").value;
+  var portLabel = document.getElementById("ngrok-port-select").selectedOptions[0].textContent;
+  // Extract the numeric port from the command key e.g. "ngrok_start_8080" → "8080"
+  var portNum   = command.replace("ngrok_start_", "");
+  var btn = this;
+
+  showOutputPopup("ngrok — Start", "Starting ngrok (" + portLabel + ")...");
+  btn.disabled    = true;
+  btn.textContent = "Starting...";
+
+  var xhr = new XMLHttpRequest();
+  xhr.open("POST", API_BASE + "/api/command", true);
+  xhr.setRequestHeader("Content-Type", "application/json");
+  xhr.timeout = 15000;
+
+  xhr.onload = function () {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      setPopupOutput(data.output || data.message || xhr.responseText);
+    } catch (e) { setPopupOutput(xhr.responseText); }
+    btn.disabled    = false;
+    btn.textContent = "Start";
+    loadServices();
+
+    // Show searching state while we wait for ngrok to fully connect
+    document.getElementById("ngrok-url").textContent          = "Searching for URL...";
+    document.getElementById("ngrok-port-display").textContent = portNum;
+    // ngrok takes several seconds to establish the tunnel and start its local API
+    // on :4040, so we start after 3 s and retry up to 4 times every 3 s.
+    setTimeout(function () { fetchNgrokUrl(portNum, 1); }, 3000);
+  };
+  xhr.onerror   = function () { setPopupOutput("Error: Could not reach backend."); btn.disabled = false; btn.textContent = "Start"; };
+  xhr.ontimeout = function () { setPopupOutput("Error: Request timed out.");       btn.disabled = false; btn.textContent = "Start"; };
+  xhr.send(JSON.stringify({ command: command }));
+});
+
+// Tries to read the active tunnel URL from ngrok's local API (:4040).
+// Retries up to maxAttempts times with a 3-second gap if the API isn't
+// ready yet (ngrok takes a few seconds to fully establish the tunnel).
+function fetchNgrokUrl(localPort, attempt) {
+  var maxAttempts = 4;
+  attempt = attempt || 1;
+
+  var xhr = new XMLHttpRequest();
+  xhr.open("POST", API_BASE + "/api/command", true);
+  xhr.setRequestHeader("Content-Type", "application/json");
+  xhr.timeout = 5000;
+
+  xhr.onload = function () {
+    try {
+      var data   = JSON.parse(xhr.responseText);
+      var output = data.output || "";
+
+      // Try 1: ngrok local API JSON — "public_url":"https://..."
+      var match = output.match(/"public_url"\s*:\s*"([^"]+)"/);
+
+      // Try 2: raw URL extracted from /tmp/ngrok.log (fallback when API isn't ready)
+      if (!match) {
+        match = output.match(/(https:\/\/[a-z0-9-]+\.ngrok[a-z0-9._-]*)/i);
+      }
+
+      if (match) {
+        document.getElementById("ngrok-url").textContent          = match[1];
+        document.getElementById("ngrok-port-display").textContent = localPort || "—";
+      } else if (attempt < maxAttempts) {
+        // Neither source had a URL yet — retry
+        setTimeout(function () { fetchNgrokUrl(localPort, attempt + 1); }, 3000);
+      } else {
+        // All retries exhausted — tell user to click Check Status for details
+        document.getElementById("ngrok-url").textContent = "URL not found — click Check Status for log";
+      }
+    } catch (e) {
+      if (attempt < maxAttempts) {
+        setTimeout(function () { fetchNgrokUrl(localPort, attempt + 1); }, 3000);
+      }
+    }
+  };
+
+  xhr.onerror = xhr.ontimeout = function () {
+    if (attempt < maxAttempts) {
+      setTimeout(function () { fetchNgrokUrl(localPort, attempt + 1); }, 3000);
+    }
+  };
+
+  xhr.send(JSON.stringify({ command: "ngrok_url" }));
+}
+
+/* ── SHARED FEEDBACK HELPER ── */
 function showFeedback(el, msg, type) {
   el.textContent = msg;
   el.className   = "control-feedback" + (type ? " " + type : "");
@@ -245,13 +599,33 @@ function showFeedback(el, msg, type) {
 /* ── REBOOT / SHUTDOWN ── */
 document.getElementById("btn-reboot").addEventListener("click", function () {
   if (confirm("Are you sure you want to reboot the device?")) {
-    runCommand("reboot");
+    showOutputPopup("Reboot", "Sending reboot command...");
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", API_BASE + "/api/command", true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.timeout = 8000;
+    xhr.onload = function () {
+      try { setPopupOutput(JSON.parse(xhr.responseText).output || "Rebooting..."); }
+      catch (e) { setPopupOutput("Reboot command sent."); }
+    };
+    xhr.onerror = function () { setPopupOutput("Reboot command sent (connection lost)."); };
+    xhr.send(JSON.stringify({ command: "reboot" }));
   }
 });
 
 document.getElementById("btn-shutdown").addEventListener("click", function () {
   if (confirm("Are you sure you want to shut down the device? You will need physical access to turn it back on.")) {
-    runCommand("shutdown");
+    showOutputPopup("Shutdown", "Sending shutdown command...");
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", API_BASE + "/api/command", true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.timeout = 8000;
+    xhr.onload = function () {
+      try { setPopupOutput(JSON.parse(xhr.responseText).output || "Shutting down..."); }
+      catch (e) { setPopupOutput("Shutdown command sent."); }
+    };
+    xhr.onerror = function () { setPopupOutput("Shutdown command sent (connection lost)."); };
+    xhr.send(JSON.stringify({ command: "shutdown" }));
   }
 });
 

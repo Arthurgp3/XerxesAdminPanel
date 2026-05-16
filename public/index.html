@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Xerxes Pi — Admin Panel</title>
-  <link rel="stylesheet" href="styles.css?v=3" />
+  <link rel="stylesheet" href="styles.css?v=6" />
 </head>
 <body>
 
@@ -19,14 +19,15 @@
     </div>
 
     <nav class="navbar-nav">
-      <a href="#dashboard" class="nav-link active" data-i18n="nav_dashboard">Dashboard</a>
-      <a href="#commands"  class="nav-link" data-i18n="nav_commands">Commands</a>
-      <a href="#network"   class="nav-link" data-i18n="nav_network">Network</a>
-      <a href="#tunnels"   class="nav-link" data-i18n="nav_tunnels">Tunnels</a>
-      <a href="#docker"    class="nav-link" data-i18n="nav_docker">Docker</a>
+      <a href="#dashboard" class="nav-link active" data-section="dashboard" data-i18n="nav_dashboard">Dashboard</a>
+      <a href="#system"    class="nav-link" data-section="system" data-i18n="nav_system">System</a>
+      <a href="#network"   class="nav-link" data-section="network" data-i18n="nav_network">Network</a>
+      <a href="#tunnels"   class="nav-link" data-section="tunnels" data-i18n="nav_tunnels">Tunnels</a>
+      <a href="#docker"    class="nav-link" data-section="docker" data-i18n="nav_docker">Docker</a>
     </nav>
 
     <div class="navbar-actions">
+      <button class="console-btn" id="console-open-btn" title="Open command output console">&gt;_</button>
       <div class="status-pill" id="status-pill">
         <span class="status-dot" id="status-dot"></span>
         <span id="status-label" data-i18n="status_checking">Checking...</span>
@@ -37,11 +38,22 @@
     </div>
   </header>
 
+  <!-- ── OUTPUT POPUP (shared overlay for all non-System commands) ── -->
+  <div id="output-popup" class="popup-overlay" hidden>
+    <div class="popup-box">
+      <div class="popup-header">
+        <span id="popup-title">Output</span>
+        <button id="popup-close" class="popup-close-btn" aria-label="Close">&#x2715;</button>
+      </div>
+      <pre class="popup-body" id="popup-body">Running...</pre>
+    </div>
+  </div>
+
   <!-- ── MAIN CONTENT ── -->
   <main class="content">
 
     <!-- ── DASHBOARD ── -->
-    <section id="dashboard" class="section">
+    <section id="dashboard" class="section active">
       <h2 class="section-title" data-i18n="nav_dashboard">Dashboard</h2>
 
       <div class="card-grid">
@@ -63,7 +75,6 @@
         </div>
       </div>
 
-      <!-- Reboot / Shutdown -->
       <div class="danger-zone">
         <span class="danger-label" data-i18n="danger_label">Power Controls</span>
         <div class="danger-btns">
@@ -73,20 +84,17 @@
       </div>
     </section>
 
-    <div class="divider"></div>
-
-    <!-- ── COMMANDS ── -->
-    <section id="commands" class="section">
-      <h2 class="section-title" data-i18n="section_commands">System Commands</h2>
-      <p class="section-desc" data-i18n="section_commands_desc">Execute predefined system operations safely.</p>
+    <!-- ── SYSTEM ── -->
+    <section id="system" class="section">
+      <h2 class="section-title" data-i18n="nav_system">System</h2>
+      <p class="section-desc" data-i18n="system_desc">Run system diagnostics. Output appears in the panel below.</p>
 
       <div class="command-grid">
-        <button class="cmd-btn" data-command="disk_usage"   data-i18n="cmd_disk_usage">Disk Usage</button>
-        <button class="cmd-btn" data-command="uptime"       data-i18n="cmd_uptime">System Uptime</button>
-        <button class="cmd-btn" data-command="network_info" data-i18n="cmd_network_info">Network Info</button>
-        <button class="cmd-btn" data-command="memory"       data-i18n="cmd_memory">Memory Usage</button>
-        <button class="cmd-btn" data-command="processes"    data-i18n="cmd_processes">Top Processes</button>
-        <button class="cmd-btn" data-command="port_scan"    data-i18n="cmd_port_scan">Port Scan</button>
+        <button class="cmd-btn sys-cmd" data-command="disk_usage"  data-i18n="cmd_disk_usage">Disk Usage</button>
+        <button class="cmd-btn sys-cmd" data-command="uptime"      data-i18n="cmd_uptime">System Uptime</button>
+        <button class="cmd-btn sys-cmd" data-command="memory"      data-i18n="cmd_memory">Memory Usage</button>
+        <button class="cmd-btn sys-cmd" data-command="processes"   data-i18n="cmd_processes">Top Processes</button>
+        <button class="cmd-btn sys-cmd" data-command="port_scan"   data-i18n="cmd_port_scan">Port Scan</button>
       </div>
 
       <div class="output-panel">
@@ -98,14 +106,82 @@
       </div>
     </section>
 
-    <div class="divider"></div>
-
     <!-- ── NETWORK ── -->
     <section id="network" class="section">
       <h2 class="section-title" data-i18n="nav_network">Network</h2>
-      <p class="section-desc" data-i18n="network_desc">Manage system network settings and file sharing.</p>
+      <p class="section-desc" data-i18n="network_desc">View network status and manage configuration.</p>
 
-      <!-- Hostname rename -->
+      <!-- Live network info cards (populated on tab open) -->
+      <div class="card-grid" id="net-info-grid">
+        <div class="card">
+          <span class="card-label">Interface</span>
+          <span class="card-value" id="net-iface-card">—</span>
+        </div>
+        <div class="card">
+          <span class="card-label">IP Address</span>
+          <span class="card-value" id="net-ip-card">—</span>
+        </div>
+        <div class="card">
+          <span class="card-label">Gateway</span>
+          <span class="card-value" id="net-gateway-card">—</span>
+        </div>
+        <div class="card">
+          <span class="card-label">DNS</span>
+          <span class="card-value" id="net-dns-card">—</span>
+        </div>
+      </div>
+
+      <!-- Network Diagnostics -->
+      <div class="control-card">
+        <div class="control-card-header">
+          <span class="control-card-title" data-i18n="ctrl_net_diag_title">Network Diagnostics</span>
+        </div>
+        <p class="control-card-desc" data-i18n="ctrl_net_diag_desc">View detailed interface and port information.</p>
+        <div class="btn-row">
+          <button class="cmd-btn" data-command="network_info" data-i18n="cmd_network_info">Network Info</button>
+          <button class="cmd-btn" data-command="port_scan"   data-i18n="cmd_port_scan">Port Scan</button>
+        </div>
+      </div>
+
+      <!-- IP Configuration -->
+      <div class="control-card">
+        <div class="control-card-header">
+          <span class="control-card-title" data-i18n="ctrl_ipconfig_title">IP Configuration</span>
+          <span class="service-badge badge-neutral" id="badge-ipconfig">dhcp</span>
+        </div>
+        <p class="control-card-desc" data-i18n="ctrl_ipconfig_desc">
+          Assign a static IP or revert to DHCP. Changes are written to <code>/etc/dhcpcd.conf</code> and take effect after a reboot.
+        </p>
+        <div class="input-row">
+          <label class="input-label">Interface</label>
+          <select class="select-input" id="net-iface-select">
+            <option value="">Loading...</option>
+          </select>
+          <label class="input-label">Mode</label>
+          <select class="select-input" id="net-mode-select">
+            <option value="dhcp">DHCP</option>
+            <option value="static">Static</option>
+          </select>
+        </div>
+        <div id="static-ip-fields" class="static-fields" hidden>
+          <div class="input-row">
+            <input class="text-input" type="text" id="net-static-ip"
+                   placeholder="IP with prefix — e.g. 192.168.1.100/24" spellcheck="false" />
+          </div>
+          <div class="input-row">
+            <input class="text-input" type="text" id="net-static-gateway"
+                   placeholder="Gateway — e.g. 192.168.1.1" spellcheck="false" />
+            <input class="text-input" type="text" id="net-static-dns"
+                   placeholder="DNS — e.g. 8.8.8.8" spellcheck="false" />
+          </div>
+        </div>
+        <div class="input-row">
+          <button class="action-btn" id="net-config-btn" data-i18n="ctrl_ipconfig_btn">Apply</button>
+        </div>
+        <div class="control-feedback" id="net-config-feedback"></div>
+      </div>
+
+      <!-- Device Hostname -->
       <div class="control-card">
         <div class="control-card-header">
           <span class="control-card-title" data-i18n="ctrl_hostname_title">Device Hostname</span>
@@ -118,7 +194,8 @@
           <input class="text-input" type="text" id="hostname-input"
                  placeholder="new-hostname" maxlength="63" spellcheck="false" />
           <button class="action-btn" id="hostname-btn" data-i18n="ctrl_hostname_btn">Rename</button>
-          <button class="secondary-btn" id="hostname-reset" data-i18n="ctrl_hostname_reset" title="Fill in the Raspberry Pi default hostname">Reset</button>
+          <button class="secondary-btn" id="hostname-reset" data-i18n="ctrl_hostname_reset"
+                  title="Fill in current hostname">Reset</button>
         </div>
         <div class="control-feedback" id="hostname-feedback"></div>
       </div>
@@ -129,9 +206,7 @@
           <span class="control-card-title" data-i18n="ctrl_smb_title">SMB File Sharing</span>
           <span class="service-badge" id="badge-samba">—</span>
         </div>
-        <p class="control-card-desc" data-i18n="ctrl_smb_desc">
-          Control the Samba file sharing service (smbd).
-        </p>
+        <p class="control-card-desc" data-i18n="ctrl_smb_desc">Control the Samba file sharing service (smbd).</p>
         <div class="btn-row">
           <button class="cmd-btn" data-command="samba_start"  data-i18n="ctrl_smb_start">Start</button>
           <button class="cmd-btn" data-command="samba_stop"   data-i18n="ctrl_smb_stop">Stop</button>
@@ -140,8 +215,6 @@
       </div>
     </section>
 
-    <div class="divider"></div>
-
     <!-- ── TUNNELS ── -->
     <section id="tunnels" class="section">
       <h2 class="section-title" data-i18n="nav_tunnels">Tunnels</h2>
@@ -149,7 +222,7 @@
         Manage remote access tunnels. Enabling a tunnel exposes this device beyond the local network.
       </p>
 
-      <!-- Tailscale -->
+      <!-- Tailscale Dashboard -->
       <div class="control-card">
         <div class="control-card-header">
           <span class="control-card-title" data-i18n="ctrl_tailscale_title">Tailscale</span>
@@ -158,33 +231,73 @@
         <p class="control-card-desc" data-i18n="ctrl_tailscale_desc">
           Join or leave the Tailscale network. Allows secure remote access via a private VPN mesh.
         </p>
+
+        <div class="mini-card-row">
+          <div class="mini-card">
+            <span class="mini-card-label">Tailscale IP</span>
+            <span class="mini-card-value" id="ts-ip">—</span>
+          </div>
+          <div class="mini-card">
+            <span class="mini-card-label">Node Name</span>
+            <span class="mini-card-value" id="ts-node">—</span>
+          </div>
+          <div class="mini-card">
+            <span class="mini-card-label">Exit Node</span>
+            <span class="mini-card-value" id="ts-exit-node">none</span>
+          </div>
+        </div>
+
+        <div class="input-row">
+          <input class="text-input" type="text" id="ts-authkey"
+                 placeholder="Auth key — optional, for headless setup (tskey-auth-...)" spellcheck="false" />
+          <button class="action-btn" id="ts-enable-btn" data-i18n="ctrl_tailscale_up">Enable</button>
+        </div>
         <div class="btn-row">
-          <button class="cmd-btn" data-command="tailscale_up"     data-i18n="ctrl_tailscale_up">Enable</button>
           <button class="cmd-btn" data-command="tailscale_down"   data-i18n="ctrl_tailscale_down">Disable</button>
           <button class="cmd-btn" data-command="tailscale_status" data-i18n="ctrl_tailscale_status">View Status</button>
         </div>
+        <div class="control-feedback" id="ts-feedback"></div>
       </div>
 
-      <!-- ngrok -->
+      <!-- ngrok Dashboard -->
       <div class="control-card">
         <div class="control-card-header">
           <span class="control-card-title" data-i18n="ctrl_ngrok_title">ngrok</span>
           <span class="service-badge" id="badge-ngrok">—</span>
         </div>
         <p class="control-card-desc" data-i18n="ctrl_ngrok_desc">
-          Expose local ports to the internet via ngrok tunnelling.
+          Expose local ports to the internet via ngrok tunnelling. Auth token must be configured on the device first.
         </p>
+
+        <div class="mini-card-row">
+          <div class="mini-card mini-card--wide">
+            <span class="mini-card-label">Tunnel URL</span>
+            <span class="mini-card-value" id="ngrok-url">—</span>
+          </div>
+          <div class="mini-card">
+            <span class="mini-card-label">Forwarding Port</span>
+            <span class="mini-card-value" id="ngrok-port-display">—</span>
+          </div>
+        </div>
+
+        <div class="input-row">
+          <label class="input-label">Port</label>
+          <select class="select-input" id="ngrok-port-select">
+            <option value="ngrok_start_8080">8080 — Admin Panel</option>
+            <option value="ngrok_start_80">80 — HTTP</option>
+            <option value="ngrok_start_3000">3000 — Dev server</option>
+            <option value="ngrok_start_5000">5000 — Flask / API</option>
+          </select>
+          <button class="action-btn" id="ngrok-start-btn" data-i18n="ctrl_ngrok_start">Start</button>
+        </div>
         <div class="btn-row">
-          <button class="cmd-btn" data-command="ngrok_start"  data-i18n="ctrl_ngrok_start">Start</button>
           <button class="cmd-btn" data-command="ngrok_stop"   data-i18n="ctrl_ngrok_stop">Stop</button>
           <button class="cmd-btn" data-command="ngrok_status" data-i18n="ctrl_ngrok_status">Check Status</button>
         </div>
       </div>
     </section>
 
-    <div class="divider"></div>
-
-    <!-- ── DOCKER (placeholder for Group 2) ── -->
+    <!-- ── DOCKER ── -->
     <section id="docker" class="section">
       <h2 class="section-title" data-i18n="nav_docker">Docker</h2>
       <p class="section-desc placeholder-note">Container management — coming soon.</p>

@@ -34,4 +34,7 @@ namespace system_ops {
     // Only accepts service names from an internal hardcoded list.
     std::string get_service_status(const std::string& service_name);
 
+    // Runs `tailscale up` with an optional auth key (pre-validated by caller).
+    std::string tailscale_up(const std::string& authkey = "");
+
 }
