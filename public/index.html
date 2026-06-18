@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Xerxes Pi — Admin Panel</title>
+  <title>Xerxes Pi -Admin Panel</title>
   <link rel="stylesheet" href="styles.css?v=6" />
 </head>
 <body>
 
-  <!-- ── TOP NAVIGATION BAR ── -->
+  <!-- TOP NAVIGATION BAR -->
   <header class="navbar">
     <div class="navbar-brand">
       <span class="brand-mark">X</span>
@@ -38,7 +38,7 @@
     </div>
   </header>
 
-  <!-- ── OUTPUT POPUP (shared overlay for all non-System commands) ── -->
+  <!-- OUTPUT POPUP (shared overlay for all non-System commands) -->
   <div id="output-popup" class="popup-overlay" hidden>
     <div class="popup-box">
       <div class="popup-header">
@@ -49,10 +49,10 @@
     </div>
   </div>
 
-  <!-- ── MAIN CONTENT ── -->
+  <!-- MAIN CONTENT -->
   <main class="content">
 
-    <!-- ── DASHBOARD ── -->
+    <!-- DASHBOARD -->
     <section id="dashboard" class="section active">
       <h2 class="section-title" data-i18n="nav_dashboard">Dashboard</h2>
 
@@ -84,7 +84,7 @@
       </div>
     </section>
 
-    <!-- ── SYSTEM ── -->
+    <!-- SYSTEM -->
     <section id="system" class="section">
       <h2 class="section-title" data-i18n="nav_system">System</h2>
       <p class="section-desc" data-i18n="system_desc">Run system diagnostics. Output appears in the panel below.</p>
@@ -106,7 +106,7 @@
       </div>
     </section>
 
-    <!-- ── NETWORK ── -->
+    <!-- NETWORK -->
     <section id="network" class="section">
       <h2 class="section-title" data-i18n="nav_network">Network</h2>
       <p class="section-desc" data-i18n="network_desc">View network status and manage configuration.</p>
@@ -166,13 +166,13 @@
         <div id="static-ip-fields" class="static-fields" hidden>
           <div class="input-row">
             <input class="text-input" type="text" id="net-static-ip"
-                   placeholder="IP with prefix — e.g. 192.168.1.100/24" spellcheck="false" />
+                   placeholder="IP with prefix - e.g. 192.168.1.100/24" spellcheck="false" />
           </div>
           <div class="input-row">
             <input class="text-input" type="text" id="net-static-gateway"
-                   placeholder="Gateway — e.g. 192.168.1.1" spellcheck="false" />
+                   placeholder="Gateway - e.g. 192.168.1.1" spellcheck="false" />
             <input class="text-input" type="text" id="net-static-dns"
-                   placeholder="DNS — e.g. 8.8.8.8" spellcheck="false" />
+                   placeholder="DNS - e.g. 8.8.8.8" spellcheck="false" />
           </div>
         </div>
         <div class="input-row">
@@ -215,7 +215,7 @@
       </div>
     </section>
 
-    <!-- ── TUNNELS ── -->
+    <!-- TUNNELS -->
     <section id="tunnels" class="section">
       <h2 class="section-title" data-i18n="nav_tunnels">Tunnels</h2>
       <p class="section-desc" data-i18n="tunnels_desc">
@@ -249,10 +249,12 @@
 
         <div class="input-row">
           <input class="text-input" type="text" id="ts-authkey"
-                 placeholder="Auth key — optional, for headless setup (tskey-auth-...)" spellcheck="false" />
-          <button class="action-btn" id="ts-enable-btn" data-i18n="ctrl_tailscale_up">Enable</button>
+                 placeholder="Auth key - optional, for headless setup (tskey-auth-...)" spellcheck="false" />
+          <button class="action-btn" id="ts-apply-btn">Apply Key</button>
+          <button class="cmd-btn"    id="ts-clear-key-btn">Clear Key</button>
         </div>
         <div class="btn-row">
+          <button class="action-btn" id="ts-enable-btn" data-i18n="ctrl_tailscale_up">Enable</button>
           <button class="cmd-btn" data-command="tailscale_down"   data-i18n="ctrl_tailscale_down">Disable</button>
           <button class="cmd-btn" data-command="tailscale_status" data-i18n="ctrl_tailscale_status">View Status</button>
         </div>
@@ -283,10 +285,10 @@
         <div class="input-row">
           <label class="input-label">Port</label>
           <select class="select-input" id="ngrok-port-select">
-            <option value="ngrok_start_8080">8080 — Admin Panel</option>
-            <option value="ngrok_start_80">80 — HTTP</option>
-            <option value="ngrok_start_3000">3000 — Dev server</option>
-            <option value="ngrok_start_5000">5000 — Flask / API</option>
+            <option value="ngrok_start_8080">8080 - Admin Panel</option>
+            <option value="ngrok_start_80">80 - HTTP</option>
+            <option value="ngrok_start_3000">3000 - Dev server</option>
+            <option value="ngrok_start_5000">5000 - Flask / API</option>
           </select>
           <button class="action-btn" id="ngrok-start-btn" data-i18n="ctrl_ngrok_start">Start</button>
         </div>
@@ -297,17 +299,127 @@
       </div>
     </section>
 
-    <!-- ── DOCKER ── -->
+    <!-- DOCKER -->
     <section id="docker" class="section">
       <h2 class="section-title" data-i18n="nav_docker">Docker</h2>
-      <p class="section-desc placeholder-note">Container management — coming soon.</p>
+      <p class="section-desc" data-i18n="docker_desc">Monitor and control Docker containers running on this device.</p>
+
+      <!-- Overview -->
+      <div class="control-card">
+        <div class="control-card-header">
+          <span class="control-card-title" data-i18n="docker_overview_title">Overview</span>
+        </div>
+        <p class="control-card-desc" data-i18n="docker_overview_desc">View running containers, available images, and live resource usage.</p>
+        <div class="btn-row">
+          <button class="cmd-btn docker-btn" data-docker-command="docker_ps"      data-i18n="docker_btn_ps">List Running</button>
+          <button class="cmd-btn docker-btn" data-docker-command="docker_ps_all"  data-i18n="docker_btn_ps_all">List All</button>
+          <button class="cmd-btn docker-btn" data-docker-command="docker_images"  data-i18n="docker_btn_images">List Images</button>
+          <button class="cmd-btn docker-btn" data-docker-command="docker_stats"   data-i18n="docker_btn_stats">Show Stats</button>
+        </div>
+      </div>
+
+      <!-- Container Management -->
+      <div class="control-card">
+        <div class="control-card-header">
+          <span class="control-card-title" data-i18n="docker_manage_title">Container Controls</span>
+        </div>
+        <p class="control-card-desc" data-i18n="docker_manage_desc">Enter a container name then choose an action. Logs shows the last 100 lines.</p>
+        <div class="input-row">
+          <input class="text-input" type="text" id="container-input"
+                 placeholder="container-name" spellcheck="false" maxlength="128" />
+        </div>
+        <div class="btn-row">
+          <button class="cmd-btn docker-btn" data-docker-command="container_start"   data-needs-name="true" data-i18n="docker_btn_start">Start</button>
+          <button class="cmd-btn docker-btn" data-docker-command="container_stop"    data-needs-name="true" data-i18n="docker_btn_stop">Stop</button>
+          <button class="cmd-btn docker-btn" data-docker-command="container_restart" data-needs-name="true" data-i18n="docker_btn_restart">Restart</button>
+          <button class="cmd-btn docker-btn" data-docker-command="container_logs"    data-needs-name="true" data-i18n="docker_btn_logs">View Logs</button>
+          <button class="cmd-btn docker-btn" data-docker-command="container_remove"  data-needs-name="true" data-confirm="true" data-i18n="docker_btn_remove">Remove</button>
+        </div>
+        <div class="control-feedback" id="docker-feedback"></div>
+      </div>
+
+      <!-- Run Container -->
+      <div class="control-card">
+        <div class="control-card-header">
+          <span class="control-card-title" data-i18n="docker_run_title">Run Container</span>
+        </div>
+        <p class="control-card-desc" data-i18n="docker_run_desc">Pull an image and start a new container. All fields are validated before the command runs.</p>
+
+        <div class="run-form">
+
+          <!-- Image / Name / Restart row -->
+          <div class="form-row">
+            <div class="form-field form-field--grow">
+              <label class="form-label" for="run-image" data-i18n="docker_run_image">Image <span class="required">*</span></label>
+              <input class="text-input" type="text" id="run-image"
+                     placeholder="nginx:latest" spellcheck="false" maxlength="256" />
+            </div>
+            <div class="form-field form-field--grow">
+              <label class="form-label" for="run-name" data-i18n="docker_run_name">Container Name</label>
+              <input class="text-input" type="text" id="run-name"
+                     placeholder="my-nginx" spellcheck="false" maxlength="128" />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="run-restart" data-i18n="docker_run_restart">Restart Policy</label>
+              <select class="select-input" id="run-restart">
+                <option value="">none</option>
+                <option value="always">always</option>
+                <option value="unless-stopped">unless-stopped</option>
+                <option value="on-failure">on-failure</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Port Mappings -->
+          <div class="list-section">
+            <div class="list-header">
+              <span class="form-label" data-i18n="docker_run_ports">Port Mappings</span>
+              <button class="secondary-btn" id="add-port-btn" type="button">+ Add</button>
+            </div>
+            <div id="port-list"></div>
+          </div>
+
+          <!-- Volume Mounts -->
+          <div class="list-section">
+            <div class="list-header">
+              <span class="form-label" data-i18n="docker_run_volumes">Volume Mounts</span>
+              <button class="secondary-btn" id="add-volume-btn" type="button">+ Add</button>
+            </div>
+            <div id="volume-list"></div>
+          </div>
+
+          <!-- Environment Variables -->
+          <div class="list-section">
+            <div class="list-header">
+              <span class="form-label" data-i18n="docker_run_env">Environment Variables</span>
+              <button class="secondary-btn" id="add-env-btn" type="button">+ Add</button>
+            </div>
+            <div id="env-list"></div>
+          </div>
+
+          <div class="run-footer">
+            <div class="control-feedback" id="run-feedback"></div>
+            <button class="action-btn" id="run-container-btn" type="button" data-i18n="docker_run_btn">Run Container</button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Docker Output Panel -->
+      <div class="output-panel">
+        <div class="output-header">
+          <span data-i18n="docker_output_title">Docker Output</span>
+          <button class="clear-btn" id="clear-docker-output">Clear</button>
+        </div>
+        <pre class="output-body" id="docker-output-body">Docker output will appear here...</pre>
+      </div>
     </section>
 
   </main>
 
-  <!-- ── FOOTER ── -->
+  <!-- FOOTER -->
   <footer class="footer">
-    <span data-i18n="footer_version">v0.1.0 — Rapid Analysis PTY LTD</span>
+    <span data-i18n="footer_version">v0.2.0 Rapid Analysis PTY LTD</span>
   </footer>
 
   <script src="app.js"></script>

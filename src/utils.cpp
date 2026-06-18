@@ -98,22 +98,26 @@ void CommandWrapper::initialize_defaults() {
                 "Show routing table", 10, {}});
     
     // Docker commands
-    add_command({"docker_ps", "docker ps --format table", command_cat::DOCKER, false, 
-                "List containers", 20, {}});
-    add_command({"docker_images", "docker images", command_cat::DOCKER, false, 
+    add_command({"docker_ps",     "docker ps --format table",    command_cat::DOCKER, false,
+                "List running containers", 20, {}});
+    add_command({"docker_ps_all", "docker ps -a --format table", command_cat::DOCKER, false,
+                "List all containers including stopped", 20, {}});
+    add_command({"docker_images", "docker images", command_cat::DOCKER, false,
                 "List images", 20, {}});
-    add_command({"docker_stats", "docker stats --no-stream", command_cat::DOCKER, false, 
+    add_command({"docker_stats",  "docker stats --no-stream", command_cat::DOCKER, false,
                 "Show container stats", 30, {}});
-    
+
     // Container management
-    add_command({"container_restart", "docker restart", command_cat::CONTAINER, true, 
+    add_command({"container_restart", "docker restart", command_cat::CONTAINER, true,
                 "Restart a container", 60, {}});
-    add_command({"container_stop", "docker stop", command_cat::CONTAINER, true, 
+    add_command({"container_stop",    "docker stop",    command_cat::CONTAINER, true,
                 "Stop a container", 30, {}});
-    add_command({"container_start", "docker start", command_cat::CONTAINER, true, 
+    add_command({"container_start",   "docker start",   command_cat::CONTAINER, true,
                 "Start a container", 30, {}});
-    add_command({"container_logs", "docker logs", command_cat::CONTAINER, false, 
-                "View container logs", 30, {"50", "100", "200"}});
+    add_command({"container_logs",    "docker logs --tail 100", command_cat::CONTAINER, false,
+                "View container logs", 30, {}});
+    add_command({"container_remove",  "docker rm",      command_cat::CONTAINER, true,
+                "Remove a stopped container", 30, {}});
     
 // Admin commands
     add_command({"reboot", "systemctl reboot", command_cat::ADMIN, true, 
@@ -123,9 +127,9 @@ void CommandWrapper::initialize_defaults() {
     add_command({"systemctl", "systemctl", command_cat::ADMIN, true, 
                 "Systemctl service manager", 30, {"start", "stop", "status", "restart"}});
     
-    // ============================================================================
+    
     // NGROK TUNNEL COMMANDS
-    // ============================================================================
+    
     add_command({"ngrok_config", "ngrok config", command_cat::ADMIN, true,
                 "Configure ngrok authtoken", 10, {"authtoken"}});
     add_command({"ngrok_start", "ngrok start", command_cat::ADMIN, true,
@@ -135,9 +139,9 @@ void CommandWrapper::initialize_defaults() {
     add_command({"ngrok_status", "ngrok status", command_cat::NETWORK, false,
                 "Get ngrok status", 10, {}});
     
-    // ============================================================================
+    
     // TAILSCALE TUNNEL COMMANDS
-    // ============================================================================
+    
     add_command({"tailscale_up", "tailscale up", command_cat::ADMIN, true,
                 "Login to Tailscale", 30, {}});
     add_command({"tailscale_down", "tailscale down", command_cat::ADMIN, true,
@@ -153,9 +157,9 @@ void CommandWrapper::initialize_defaults() {
     add_command({"tailscale_rename", "tailscale rename", command_cat::ADMIN, true,
                 "Rename device", 15, {}});
     
-    // ============================================================================
+    
     // CREDENTIAL MANAGEMENT
-    // ============================================================================
+    
     add_command({"store_credential", "keyctl", command_cat::ADMIN, true,
                 "Store credential", 10, {}});
     add_command({"get_credential", "keyctl", command_cat::ADMIN, true,
@@ -248,12 +252,17 @@ bool CommandWrapper::validate_params(const CommandEntry& entry,
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
     
     // Block suspicious patterns
-    const char* dangerous[] = {" && ", " || ", "; ", "| ", "`", "$(", "${", 
-                             "\n", "\r", "\0", "../", "..\\"};
+    const char* dangerous[] = {" && ", " || ", "; ", "| ", "`", "$(", "${",
+                               "\n", "\r", "../", "..\\"};
     for (const char* pattern : dangerous) {
         if (lower.find(pattern) != std::string::npos) {
             return false;
         }
+    }
+    // Check for null bytes separately find("\0") uses strlen which gives 0,
+    // making it match every string. Use find(char) instead.
+    if (params.find('\0') != std::string::npos) {
+        return false;
     }
     
     // 4. Check for path traversal attempts

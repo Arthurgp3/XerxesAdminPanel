@@ -1,12 +1,4 @@
-/* ============================================================
-   XERXES PI ADMIN — Stylesheet
-   Monochromatic palette, Unifi/Apple inspired.
-   No graphics — CSS only.
-   ============================================================ */
-
-/* Version 6 — console navbar button, popup open/close animation, network spacing fix */
-
-/* ── CSS VARIABLES (Light mode defaults) ── */
+/* CSS VARIABLES (Light mode defaults)  */
 :root {
   --bg:           #f5f5f7;
   --bg-card:      #ffffff;
@@ -26,7 +18,7 @@
   --font-mono:    "SF Mono", "Fira Code", "Consolas", monospace;
 }
 
-/* ── DARK MODE ── */
+/*  DARK MODE  */
 [data-theme="dark"] {
   --bg:           #000000;
   --bg-card:      #1c1c1e;
@@ -39,7 +31,7 @@
   --shadow:       0 1px 4px rgba(0,0,0,0.4);
 }
 
-/* ── RESET & BASE ── */
+/*  RESET & BASE  */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 [hidden] { display: none !important; }  /* ensure hidden attribute wins over any display rule */
 html { scroll-behavior: smooth; }
@@ -56,7 +48,7 @@ body {
   transition: background 0.2s, color 0.2s;
 }
 
-/* ── NAVBAR ── */
+/*  NAVBAR  */
 .navbar {
   position: sticky;
   top: 0;
@@ -73,7 +65,6 @@ body {
 
 .navbar-brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
-/* Pure CSS brand mark — no image */
 .brand-mark {
   width: 30px;
   height: 30px;
@@ -111,7 +102,7 @@ body {
 
 .navbar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
-/* ── STATUS PILL ── */
+/* STATUS PILL */
 .status-pill {
   display: flex;
   align-items: center;
@@ -135,7 +126,7 @@ body {
 .status-dot.online  { background: var(--status-on); }
 .status-dot.offline { background: var(--status-off); }
 
-/* ── THEME TOGGLE ── */
+/* THEME TOGGLE */
 .theme-toggle {
   padding: 5px 12px;
   border-radius: 6px;
@@ -151,7 +142,7 @@ body {
 
 .theme-toggle:hover { background: var(--border); color: var(--text-primary); }
 
-/* ── CONSOLE BUTTON (navbar) ── */
+/* CONSOLE BUTTON (navbar) */
 .console-btn {
   padding: 5px 12px;
   border-radius: 6px;
@@ -168,7 +159,7 @@ body {
 
 .console-btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
-/* ── MAIN CONTENT ── */
+/*   MAIN CONTENT   */
 .content {
   flex: 1;
   max-width: 960px;
@@ -177,7 +168,7 @@ body {
   padding: 40px 32px;
 }
 
-/* ── TAB SWITCHING — only .active section is shown ── */
+/*   TAB SWITCHING — only .active section is shown   */
 .section         { display: none; margin-bottom: 8px; }
 .section.active  { display: block; }
 
@@ -203,7 +194,7 @@ body {
 
 .divider { height: 1px; background: var(--border); margin: 36px 0; }
 
-/* ── DASHBOARD CARDS ── */
+/*   DASHBOARD CARDS   */
 .card-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -235,7 +226,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── COMMAND BUTTONS ── */
+/*   COMMAND BUTTONS   */
 .command-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -267,7 +258,7 @@ body {
 .cmd-btn:active  { transform: scale(0.98); }
 .cmd-btn.running { opacity: 0.6; cursor: wait; }
 
-/* ── OUTPUT PANEL ── */
+/*   OUTPUT PANEL   */
 .output-panel {
   border-radius: var(--radius);
   overflow: hidden;
@@ -317,7 +308,7 @@ body {
   word-break: break-word;
 }
 
-/* ── DANGER ZONE (reboot / shutdown) ── */
+/*   DANGER ZONE (reboot / shutdown)   */
 .danger-zone {
   display: flex;
   align-items: center;
@@ -365,7 +356,7 @@ body {
 /* Gap between the live-info card grid and the first control card below it */
 #net-info-grid { margin-bottom: 20px; }
 
-/* ── CONTROL CARDS (Network / Tunnels) ── */
+/*   CONTROL CARDS (Network / Tunnels)   */
 /* Intentionally matches .card style for visual consistency */
 .control-card {
   background: var(--bg-card);
@@ -400,7 +391,7 @@ body {
   line-height: 1.5;
 }
 
-/* ── SERVICE BADGES ── */
+/*   SERVICE BADGES   */
 .service-badge {
   font-size: 11px;
   font-weight: 600;
@@ -416,7 +407,7 @@ body {
 .badge-failed   { border-color: var(--status-off);  color: var(--status-off); }
 .badge-neutral  { border-color: var(--border);      color: var(--text-secondary); }
 
-/* ── INPUT ROW (hostname rename) ── */
+/*   INPUT ROW (hostname rename)   */
 .input-row {
   display: flex;
   gap: 10px;
@@ -455,7 +446,7 @@ body {
 
 .action-btn:hover { opacity: 0.8; }
 
-/* ── SECONDARY BUTTON (reset / cancel style) ── */
+/*   SECONDARY BUTTON (reset / cancel style)   */
 .secondary-btn {
   padding: 9px 14px;
   border-radius: var(--radius);
@@ -485,14 +476,126 @@ body {
 .control-feedback.success { color: var(--status-on); }
 .control-feedback.error   { color: var(--status-off); }
 
-/* ── BTN ROW (service controls) ── */
+/*   BTN ROW (service controls)   */
 .btn-row {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-/* ── FOOTER ── */
+/*   DOCKER RUN FORM   */
+.run-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 14px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field--grow {
+  flex: 1;
+  min-width: 160px;
+}
+
+.form-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.required { color: var(--status-off); }
+
+.select-input {
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  height: 38px;
+}
+
+.select-input:focus { border-color: var(--accent); }
+
+.select-input--narrow { width: 72px; flex-shrink: 0; }
+
+.list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dynamic-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.dynamic-row .text-input { flex: 1; min-width: 0; }
+
+.row-sep {
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.remove-btn {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  font-family: var(--font);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.remove-btn:hover {
+  background: var(--status-off);
+  border-color: var(--status-off);
+  color: #fff;
+}
+
+.run-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+
+/*   FOOTER   */
 .footer {
   text-align: center;
   padding: 20px 32px;
@@ -501,13 +604,13 @@ body {
   border-top: 1px solid var(--border);
 }
 
-/* ── POPUP ANIMATIONS ── */
+/*   POPUP ANIMATIONS   */
 @keyframes overlay-in  { from { opacity: 0; }                          to { opacity: 1; } }
 @keyframes overlay-out { from { opacity: 1; }                          to { opacity: 0; } }
 @keyframes popup-in    { from { opacity: 0; transform: scale(0.93); }  to { opacity: 1; transform: scale(1); } }
 @keyframes popup-out   { from { opacity: 1; transform: scale(1);    }  to { opacity: 0; transform: scale(0.93); } }
 
-/* ── OUTPUT POPUP OVERLAY ── */
+/*   OUTPUT POPUP OVERLAY   */
 .popup-overlay {
   position: fixed;
   inset: 0;
@@ -593,7 +696,7 @@ body {
   margin: 0;
 }
 
-/* ── MINI CARDS (Tailscale / ngrok info rows) ── */
+/*   MINI CARDS (Tailscale / ngrok info rows)   */
 .mini-card-row {
   display: flex;
   gap: 10px;
@@ -631,7 +734,7 @@ body {
   word-break: break-all;
 }
 
-/* ── SELECT INPUT ── */
+/*   SELECT INPUT   */
 .select-input {
   padding: 9px 10px;
   border-radius: var(--radius);
@@ -648,7 +751,7 @@ body {
 
 .select-input:focus { border-color: var(--accent); }
 
-/* ── INPUT LABEL ── */
+/*   INPUT LABEL   */
 .input-label {
   font-size: 12px;
   font-weight: 500;
@@ -657,7 +760,7 @@ body {
   align-self: center;
 }
 
-/* ── STATIC IP FIELDS wrapper ── */
+/*   STATIC IP FIELDS wrapper   */
 .static-fields {
   display: flex;
   flex-direction: column;
@@ -665,7 +768,7 @@ body {
   margin-bottom: 4px;
 }
 
-/* ── INLINE CODE in desc text ── */
+/*   INLINE CODE in desc text   */
 .control-card-desc code {
   font-family: var(--font-mono);
   font-size: 11px;

@@ -11,12 +11,12 @@
 
 namespace system_ops {
 
-    // ----------------------------------------------------------------
+    
     // capture()
     // Runs a hardcoded shell command and returns its stdout as a string.
     // IMPORTANT: This function must only ever be called with hardcoded
-    // string literals — never with user-supplied input.
-    // ----------------------------------------------------------------
+    // string literals never with user-supplied input.
+    
     static std::string capture(const char* shell_command) {
         FILE* pipe = popen(shell_command, "r");
         if (!pipe) return "[error] Failed to open process.";
@@ -40,12 +40,12 @@ namespace system_ops {
         return s;
     }
 
-    // ----------------------------------------------------------------
+    
     // ALLOWLIST
     // Maps the command name sent from the frontend to a fixed,
     // hardcoded shell command string. The user can only trigger
-    // keys in this map — they cannot influence the command string.
-    // ----------------------------------------------------------------
+    // keys in this map they cannot influence the command string.
+    
     static const std::map<std::string, const char*> ALLOWLIST = {
         // System diagnostics
         { "disk_usage",      "df -h" },
@@ -63,30 +63,34 @@ namespace system_ops {
         // request doesn't time out in the browser. The auth URL will appear
         // in the output if authentication is still needed.
         { "tailscale_up",    "timeout 10 sudo tailscale up 2>&1 && echo 'Tailscale is up.' || echo '[note] tailscale up timed out — open the URL above in a browser to authenticate, then try again'" },
-        { "tailscale_down",  "sudo tailscale down 2>&1" },
+        { "tailscale_down",  "sudo tailscale down 2>&1 && echo 'Tailscale disabled successfully.' || echo 'Failed to disable Tailscale.'" },
         { "tailscale_status","tailscale status 2>&1" },
         // ngrok tunnel (auth token must be configured in the VM first via: ngrok config add-authtoken <token>)
         { "ngrok_start",     "pkill ngrok 2>/dev/null; nohup ngrok http 8080 > /tmp/ngrok.log 2>&1 & echo 'ngrok tunnel starting on port 8080. Use Check Status to verify.'" },
         { "ngrok_stop",      "pkill ngrok 2>/dev/null && echo 'ngrok stopped.' || echo 'ngrok was not running.'" },
-        // Show process state AND last 10 lines of the ngrok log so we can see tunnel URLs / errors
         { "ngrok_status",
           "if pgrep -x ngrok > /dev/null; then "
             "echo 'ngrok is running.'; echo ''; "
-            "echo 'Log output:'; "
-            "tail -10 /tmp/ngrok.log 2>/dev/null || echo '(no log file yet)'; "
+            "curl -s http://localhost:4040/api/tunnels 2>/dev/null | "
+              "python3 -c \""
+                "import sys, json; "
+                "d = json.load(sys.stdin); "
+                "ts = d.get('tunnels', []); "
+                "print('Active tunnels: ' + str(len(ts))); "
+                "[print('  ' + t.get('public_url','?') + ' -> ' + t.get('config',{}).get('addr','?')) for t in ts] if ts else print('  (tunnel not yet established)'); "
+              "\" 2>/dev/null || echo '(tunnel info unavailable)'; "
           "else "
-            "echo 'ngrok is not running.'; echo ''; "
-            "echo 'Last log:'; tail -5 /tmp/ngrok.log 2>/dev/null || echo '(no log)'; "
+            "echo 'ngrok is not running.'; "
           "fi" },
         // Tailscale extra info
         { "tailscale_ip",      "tailscale ip 2>&1" },
-        // ngrok — per-port start commands (hardcoded, not user-influenced)
+        // ngrok per-port start commands (hardcoded, not user-influenced)
         // nohup prevents SIGHUP from killing ngrok when the popen() shell exits
         { "ngrok_start_8080",  "pkill ngrok 2>/dev/null; nohup ngrok http 8080 > /tmp/ngrok.log 2>&1 & echo 'ngrok tunnel starting on port 8080. Use Check Status to verify.'" },
         { "ngrok_start_80",    "pkill ngrok 2>/dev/null; nohup ngrok http 80   > /tmp/ngrok.log 2>&1 & echo 'ngrok tunnel starting on port 80. Use Check Status to verify.'"   },
         { "ngrok_start_3000",  "pkill ngrok 2>/dev/null; nohup ngrok http 3000 > /tmp/ngrok.log 2>&1 & echo 'ngrok tunnel starting on port 3000. Use Check Status to verify.'" },
         { "ngrok_start_5000",  "pkill ngrok 2>/dev/null; nohup ngrok http 5000 > /tmp/ngrok.log 2>&1 & echo 'ngrok tunnel starting on port 5000. Use Check Status to verify.'" },
-        // ngrok URL — try local API first; also output any ngrok URL found in the log as a fallback.
+        // ngrok URL try local API first; also output any ngrok URL found in the log as a fallback.
         // The JS side will accept either a JSON "public_url" value or a raw https://...ngrok... URL.
         { "ngrok_url",
           "curl -s http://localhost:4040/api/tunnels 2>/dev/null; "
@@ -96,28 +100,28 @@ namespace system_ops {
         { "shutdown",          "sudo systemctl poweroff 2>&1" }
     };
 
-    // ----------------------------------------------------------------
+    
     // initialize()
     // Sets up the CommandWrapper singleton with the default command
     // catalogue. Call once at startup from main.cpp.
-    // ----------------------------------------------------------------
+    
     void initialize() {
         std::cout << "[system_ops] Initializing CommandWrapper...\n";
         CommandWrapper::get_instance().initialize_defaults();
         std::cout << "[system_ops] CommandWrapper initialized with default commands.\n";
     }
 
-    // ----------------------------------------------------------------
+    
     // execute_command()
     // Executes a command via the CommandWrapper with role-based access
     // control and timeout support. Returns a full CommandResult.
-    // ----------------------------------------------------------------
+    
     CommandResult execute_command(const std::string& command_name,
                                   const std::string& params,
                                   user_role::Role role) {
         auto& wrapper = CommandWrapper::get_instance();
 
-        // Lazy initialisation — ensure defaults are loaded
+        // Lazy initialisation ensure defaults are loaded
         if (!wrapper.is_allowed("disk_usage")) {
             wrapper.initialize_defaults();
         }
@@ -125,12 +129,12 @@ namespace system_ops {
         return wrapper.execute_with_timeout(command_name, params, role, 30000);
     }
 
-    // ----------------------------------------------------------------
+    
     // tailscale_up()
     // Runs `tailscale up` with an optional pre-validated auth key.
     // The authkey is validated by the router before this is called
     // (only alphanumeric, hyphens, underscores allowed).
-    // ----------------------------------------------------------------
+    
     std::string tailscale_up(const std::string& authkey) {
         std::string cmd;
         if (authkey.empty()) {
@@ -150,11 +154,11 @@ namespace system_ops {
         return capture(it->second);
     }
 
-    // ----------------------------------------------------------------
+    
     // Dashboard card helpers
     // Each calls a specific, hardcoded command and trims the output
     // to a short value suitable for displaying in a card.
-    // ----------------------------------------------------------------
+    
 
     std::string get_hostname() {
         return trim(capture("hostname"));
@@ -175,12 +179,12 @@ namespace system_ops {
         return trim(capture("hostname -I | awk '{print $1}'"));
     }
 
-    // ----------------------------------------------------------------
+    
     // set_hostname()
     // Validates the proposed hostname strictly against RFC 1123 rules
     // before allowing it anywhere near the shell.
     // Only letters, numbers, and hyphens are permitted.
-    // ----------------------------------------------------------------
+    
     std::string set_hostname(const std::string& name) {
         if (name.empty() || name.length() > 63)
             return "[error] Hostname must be between 1 and 63 characters.";
@@ -193,7 +197,7 @@ namespace system_ops {
         if (name.front() == '-' || name.back() == '-')
             return "[error] Hostname cannot start or end with a hyphen.";
 
-        // Input is fully validated — safe to build the command.
+        // Input is fully validated safe to build the command.
         // We also update /etc/hosts so that sudo (and other tools) can resolve
         // the new hostname without "unable to resolve host" warnings.
         // The sed pattern replaces the 127.0.1.1 line which maps the hostname.
@@ -203,12 +207,12 @@ namespace system_ops {
         return capture(cmd.c_str());
     }
 
-    // ----------------------------------------------------------------
+    
     // get_service_status()
     // Returns the systemd active state of a known service.
-    // Uses a hardcoded internal map — the caller cannot influence
+    // Uses a hardcoded internal map the caller cannot influence
     // which shell command runs.
-    // ----------------------------------------------------------------
+    
     std::string get_service_status(const std::string& service_name) {
         static const std::map<std::string, const char*> SERVICE_COMMANDS = {
             { "smbd",       "systemctl is-active smbd 2>/dev/null" },

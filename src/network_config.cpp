@@ -114,10 +114,8 @@ namespace network_config {
         return true;
     }
 
-    // ----------------------------------------------------------------
     // get_network_info()
     // Returns hostname, primary IP, gateway, DNS, and interface list.
-    // ----------------------------------------------------------------
     nlohmann::json get_network_info() {
         std::string addr_out  = capture("ip addr show 2>/dev/null");
         std::string route_out = capture("ip route show default 2>/dev/null");
@@ -135,11 +133,9 @@ namespace network_config {
         return j;
     }
 
-    // ----------------------------------------------------------------
     // set_static()
     // Appends a Xerxes-managed static config block to /etc/dhcpcd.conf.
     // All inputs validated before any shell access.
-    // ----------------------------------------------------------------
     std::string set_static(const std::string& iface,
                            const std::string& ip,
                            const std::string& gateway,
@@ -174,11 +170,9 @@ namespace network_config {
         );
     }
 
-    // ----------------------------------------------------------------
     // set_dhcp()
     // Removes the Xerxes-managed static block for an interface,
     // reverting it to DHCP.
-    // ----------------------------------------------------------------
     std::string set_dhcp(const std::string& iface) {
         if (!is_valid_iface(iface))
             return "[error] Invalid interface name.";

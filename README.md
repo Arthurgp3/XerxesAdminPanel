@@ -104,6 +104,35 @@ make CXX=aarch64-linux-gnu-g++ TARGET=xerxes_backend_arm64
 
 You can then securely copy the resulting `xerxes_backend_arm64` file directly to your physical Xerxes Pi board for deployment.
 
+## Deploy as a systemd Service (Production)
+
+To run the Xerxes Pi Admin Panel continuously in the background and ensure it starts automatically on device boot, you should deploy it as a native Linux `systemd` service.
+Deployment process is written in `deploy_systemd.sh`.
+
+1. Execute the Script
+Make it executable, and run it with root privileges:
+
+```Bash
+chmod +x deploy.sh
+sudo ./deploy.sh
+```
+2. Verify the Service
+To confirm the backend is running successfully in the background, check the systemd status:
+
+```Bash
+sudo systemctl status xerxes
+```
+You should see active (running) highlighted in green.
+
+3. Accessing the Admin Panel
+Once deployed, the C++ backend will automatically listen on Port 8080. You can access the panel via your web browser:
+
+- Local Network (LAN): http://<DEVICE_IP_ADDRESS>:8080 (e.g., http://192.168.1.50:8080)
+
+- Vagrant Host (if port-forwarded): http://localhost:7272 (or any port configured in Vagrantfile)
+
+- Tailscale (Remote): http://<TAILSCALE_IP>:8080 (e.g., http://100.x.x.x:8080)
+
 ## Notes
 - There will be some differences between MacBooks and Windows machines in the setup process. If this setup guide does not work for you, contact me immediately so we can all progress.
 - If there is any enquiry about setting up or the development process in general, contact me in Discord or drop an email at thienphu.tran@students.mq.edu.au
